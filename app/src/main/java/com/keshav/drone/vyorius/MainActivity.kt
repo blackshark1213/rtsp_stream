@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
     private var isRecording by mutableStateOf(false)
     private var isPlayerReady by mutableStateOf(false)
 
-    private val currentRtspUrl = mutableStateOf("rtsp://10.51.34.105:5570/ch0")
+    private val currentRtspUrl = mutableStateOf("")
     private lateinit var requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,11 +61,8 @@ class MainActivity : ComponentActivity() {
             val allGranted = permissions.all { it.value }
             if (allGranted) {
                 Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
-                initializePlayer(currentRtspUrl.value)
             } else {
                 Toast.makeText(this, "Permissions denied", Toast.LENGTH_LONG).show()
-                Toast.makeText(this, "Please grant all required permissions", Toast.LENGTH_LONG).show()
-                initializePlayer(currentRtspUrl.value)
                 finish()
             }
         }
@@ -107,7 +104,7 @@ class MainActivity : ComponentActivity() {
 
 
     @OptIn(UnstableApi::class)
-    private fun initializePlayer(rtspUrl: String) {
+    fun initializePlayer(rtspUrl: String) {
         if (rtspUrl.isEmpty()) return
 
         player?.release()
@@ -200,6 +197,7 @@ fun RTSPPlayerApp(
 ) {
     val context = LocalContext.current
     var rtspUrl by remember { mutableStateOf(currentUrl) }
+    var hasStreamStarted by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -214,22 +212,27 @@ fun RTSPPlayerApp(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
 
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    mainActivity.player?.let { this.player = it }
-                    useController = true
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp)
-                .border(BorderStroke(2.dp, MaterialTheme.colorScheme.primary), RoundedCornerShape(8.dp))
-        )
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (hasStreamStarted) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        mainActivity.player?.let { this.player = it }
+                        useController = true
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
+                    .border(BorderStroke(2.dp, MaterialTheme.colorScheme.primary), RoundedCornerShape(8.dp))
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -253,14 +256,26 @@ fun RTSPPlayerApp(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        StyledButton(text = "Connect Stream") {
+            if (rtspUrl.isNotBlank()) {
+                onRtspUrlChanged(rtspUrl)
+                mainActivity.initializePlayer(rtspUrl)
+                hasStreamStarted = true
+            } else {
+                Toast.makeText(context, "Please enter a valid RTSP URL", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }
+
 
 @Composable
 fun StyledButton(text: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5)),
         modifier = Modifier
             .height(48.dp)
